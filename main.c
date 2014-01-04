@@ -143,7 +143,7 @@ int main(void)
         vSemaphoreCreateBinary(serial_tx_wait_sem);
         /* Add for serial input 
          * Reference: www.freertos.org/a00116.html */
-        serial_rx_queue = xQueueCreate(1, sizeof(char));
+        serial_rx_queue = xQueueCreate(100, sizeof(char));
 
 
 	/* Create a task to button check. */
