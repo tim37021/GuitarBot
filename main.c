@@ -31,7 +31,7 @@ volatile xQueueHandle serial_rx_queue = NULL;
 
 
 /* Private function prototypes -----------------------------------------------*/
-static void UR_task(void *pvParameters);
+static void interpreter_task(void *pvParameters);
 
 /**
  * @brief  This function handles EXTI0_IRQ Handler.
@@ -147,8 +147,8 @@ int main(void)
 
 
 	/* Create a task to button check. */
-	xTaskCreate(UR_task,
-			(signed portCHAR *) "LCD Task",
+	xTaskCreate(interpreter_task,
+			(signed portCHAR *) "Interpreter Task",
 			512 /* stack size */, NULL,
 			tskIDLE_PRIORITY + 5, NULL);
 
@@ -171,15 +171,44 @@ void USART_puts(USART_TypeDef* USARTx, volatile char *s){
         }
 }
 
-static void UR_task(void *pvParameters)
+
+#define STRING_PRESS 0x06
+#define STRING_RELEASE 0x07
+#define STRING_FRET 0x08
+
+void string_press(int);
+void string_release(int);
+void string_fret(int);
+void string_move(int, int);
+void string_chord(int, int);
+
+static void interpreter_task(void *pvParameters)
 {
 	init_USART();
+
+	char opcode;
 	
-	char ch[]={"You input: \r\n"};
 	while(1){
-		//ch[10]=recv_byte();
-		USART_puts(USART2, ch );
-		vTaskDelay(100);
+		/*Assume we can complete all task in O(1)*/
+		opcode=recv_byte();
+		switch(opcode%16){ 
+			case STRING_PRESS:		/* 0x06 */
+				string_press(opcode/16); break;
+			case STRING_RELEASE: 	/* 0x07 */
+				string_release(opcode/16); break;
+			case STRING_FRET: 		/* 0x08 */
+				string_fret(opcode/16); break;
+			default:
+				if(opcode%16>=0x0&&opcode%16<=0x5){
+					string_move(opcode/16, opcode%16);
+				}else{
+					if(opcode/16>=0xA&&opcode/16<=0xF&&opcode%16>=0xA&&opcode%16<=0xF)
+						string_chord(opcode/16-0xA, opcode%16-0xA);
+					else
+						USART_puts(USART2, "Invaild operation\r\n");
+					}
+				break;
+		}
 	}
 }
 
